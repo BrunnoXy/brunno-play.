@@ -1,0 +1,63 @@
+name: Build BRUNNO PLAY APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar arquivos
+        uses: actions/checkout@v4
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Encontrar projeto ZIP
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERRO: Nenhum ZIP encontrado."
+            exit 1
+          fi
+
+          echo "Arquivo encontrado: $ZIP_FILE"
+          mkdir -p project
+          unzip -q "$ZIP_FILE" -d project
+
+      - name: Encontrar Gradle
+        run: |
+          GRADLEW=$(find project -type f -name gradlew | head -n 1)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "ERRO: Gradle não encontrado no projeto."
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$GRADLEW")
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+
+          chmod +x "$GRADLEW"
+
+      - name: Compilar BRUNNO PLAY
+        working-directory: project
+        run: |
+          chmod +x "$(find . -name gradlew | head -n 1)"
+          ./$(find . -name gradlew | head -n 1 | sed 's|^\./||') assembleDebug
+
+      - name: Publicar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BRUNNO-PLAY-APK
+          path: project/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
